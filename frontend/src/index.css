@@ -1,0 +1,160 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.16), transparent 32%),
+    radial-gradient(circle at 85% 12%, rgba(20, 184, 166, 0.13), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(245, 158, 11, 0.1), transparent 24%),
+    linear-gradient(180deg, #0b1220 0%, #0d1628 52%, #0b1220 100%);
+  @apply bg-background font-sans text-textPrimary antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.28);
+  color: #f8fafc;
+}
+
+@layer base {
+  body {
+    @apply text-textPrimary;
+  }
+}
+
+@layer components {
+  .app-shell {
+    @apply relative min-h-screen overflow-hidden;
+  }
+
+  .page-shell {
+    @apply relative mx-auto max-w-7xl px-4 pb-16 pt-8 sm:px-6 lg:px-8;
+  }
+
+  .surface-panel {
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 28px;
+    background:
+      linear-gradient(180deg, rgba(26, 35, 56, 0.94) 0%, rgba(17, 26, 46, 0.96) 100%);
+    box-shadow: 0 24px 60px rgba(2, 6, 23, 0.42);
+  }
+
+  .surface-panel-muted {
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 24px;
+    background: rgba(17, 26, 46, 0.74);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .glass-nav {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(11, 18, 32, 0.72);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 16px 50px rgba(2, 6, 23, 0.25);
+  }
+
+  .section-kicker {
+    letter-spacing: 0.24em;
+    @apply inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase text-textSecondary;
+  }
+
+  .section-title {
+    @apply text-3xl font-semibold leading-tight text-textPrimary sm:text-4xl;
+  }
+
+  .section-copy {
+    @apply max-w-2xl text-sm leading-7 text-textSecondary sm:text-base;
+  }
+
+  .metric-chip {
+    @apply inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-textSecondary;
+  }
+
+  .fin-button {
+    background: linear-gradient(135deg, #3b82f6, #14b8a6);
+    box-shadow: 0 14px 35px rgba(59, 130, 246, 0.28);
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:shadow-glow;
+  }
+
+  .fin-button-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-textPrimary transition duration-200 hover:border-accentBlue/40 hover:bg-white/10;
+  }
+
+  .data-grid {
+    background-image:
+      linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+    background-position: -1px -1px;
+    background-size: 42px 42px;
+  }
+
+  .nav-link-line {
+    height: 1px;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 220ms ease;
+  }
+
+  .nav-link-active .nav-link-line,
+  .nav-link:hover .nav-link-line {
+    transform: scaleX(1);
+  }
+
+  .skeleton-block {
+    @apply relative overflow-hidden rounded-2xl bg-white/5;
+  }
+
+  .skeleton-block::after {
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+    animation: shimmer 1.6s infinite;
+    content: "";
+  }
+
+  .markdown-chat p {
+    @apply my-2 leading-7 text-slate-100;
+  }
+
+  .markdown-chat ul {
+    @apply my-3 list-disc space-y-1 pl-4 text-textSecondary;
+  }
+
+  .markdown-chat strong {
+    @apply text-white;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
