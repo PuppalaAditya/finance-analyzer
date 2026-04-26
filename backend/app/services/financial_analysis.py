@@ -99,6 +99,15 @@ def generate_ai_financial_analysis(
     try:
         logger.info("Calling Gemini once for metrics + analysis")
         result_text = generate_structured_financial_analysis(prompt)
+        if result_text:
+            result_text = result_text.strip()
+            if result_text.startswith("```json"):
+                result_text = result_text[7:]
+            elif result_text.startswith("```"):
+                result_text = result_text[3:]
+            if result_text.endswith("```"):
+                result_text = result_text[:-3]
+            result_text = result_text.strip()
         ai_obj = json.loads(result_text or "{}")
     except Exception as exc:  # noqa: BLE001
         logger.warning("Gemini AI financial analysis failed: %s", exc)

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from ..extraction.pdf_pipeline import extract_text_pymupdf
+from ..extraction.pdf_pipeline import extract_text_pdfplumber
 from ..services.rag_engine import answer_with_rag
 from ..utils.logger import get_logger
 
@@ -19,7 +19,7 @@ async def chat_with_document(
 
     try:
         content = await file.read()
-        raw_text = extract_text_pymupdf(content)
+        raw_text = extract_text_pdfplumber(content)
         if not raw_text:
             raise HTTPException(
                 status_code=400,

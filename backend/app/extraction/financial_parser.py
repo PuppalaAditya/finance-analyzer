@@ -20,12 +20,17 @@ _TEXT_LABEL_PATTERNS: List[Tuple[str, str]] = [
     ("total revenue", "revenue"),
     ("sales", "revenue"),
     ("turnover", "revenue"),
-    ("loss for the year from continuing operations after tax", "net_profit"),
-    ("profit for the year", "net_profit"),
-    ("profit after tax", "net_profit"),
-    ("net profit", "net_profit"),
-    ("pat", "net_profit"),
+    ("loss for the year from continuing operations after tax", "net_income"),
+    ("profit for the year", "net_income"),
+    ("profit after tax", "net_income"),
+    ("net profit", "net_income"),
+    ("pat", "net_income"),
     ("total equity", "total_equity"),
+    ("total assets", "assets"),
+    ("total liabilities", "liabilities"),
+    ("net cash", "cash_flow"),
+    ("cash flow from operating activities", "cash_flow"),
+    ("operating cash flow", "cash_flow"),
     ("borrowings (other than debt securities)", "borrowings"),
     ("\ndebt securities", "debt_securities"),  # standalone row only
     ("borrowings", "total_debt"),
@@ -45,8 +50,13 @@ _TEXT_LABEL_PATTERNS: List[Tuple[str, str]] = [
 class FinancialMetrics:
     revenue: Optional[float] = None
     revenue_growth_pct: Optional[float] = None
+    ebitda: Optional[float] = None
     ebitda_margin_pct: Optional[float] = None
+    net_income: Optional[float] = None
     net_profit_margin_pct: Optional[float] = None
+    assets: Optional[float] = None
+    liabilities: Optional[float] = None
+    cash_flow: Optional[float] = None
     total_debt: Optional[float] = None
     total_equity: Optional[float] = None
     debt_to_equity: Optional[float] = None
@@ -65,13 +75,19 @@ def _match_row_label(label: str) -> str:
     if "ebitda" in lower:
         return "ebitda"
     if "loss for the year" in lower and "after tax" in lower:
-        return "net_profit"
+        return "net_income"
     if "profit for the year" in lower or "net profit" in lower or "pat" in lower:
-        return "net_profit"
-    if "profit after tax" in lower or "profit before tax" in lower:
-        return "net_profit"
+        return "net_income"
+    if "profit after tax" in lower:
+        return "net_income"
     if "total equity" in lower:
         return "total_equity"
+    if "total assets" in lower:
+        return "assets"
+    if "total liabilities" in lower:
+        return "liabilities"
+    if "cash flow" in lower or "net cash" in lower:
+        return "cash_flow"
     if "borrowings" in lower or "total debt" in lower:
         return "total_debt"
     if "debt to equity" in lower or "debt/equity" in lower:
@@ -126,11 +142,19 @@ def _extract_from_text(text: str, metrics: FinancialMetrics) -> None:
                 continue
         if key == "revenue" and metrics.revenue is not None:
             continue
-        if key == "net_profit" and metrics.net_profit_margin_pct is not None:
+        if key == "net_income" and metrics.net_income is not None:
             continue
         if key == "total_debt" and metrics.total_debt is not None:
             continue
         if key == "total_equity" and metrics.total_equity is not None:
+            continue
+        if key == "assets" and metrics.assets is not None:
+            continue
+        if key == "liabilities" and metrics.liabilities is not None:
+            continue
+        if key == "cash_flow" and metrics.cash_flow is not None:
+            continue
+        if key == "ebitda" and metrics.ebitda is not None:
             continue
 
         value = _parse_first_number_after(text, idx + len(pattern))
@@ -139,15 +163,20 @@ def _extract_from_text(text: str, metrics: FinancialMetrics) -> None:
 
         if key == "revenue":
             metrics.revenue = value
-        elif key == "net_profit":
-            if metrics.revenue and metrics.revenue != 0:
-                metrics.net_profit_margin_pct = (value / abs(metrics.revenue)) * 100
+        elif key == "net_income":
+            metrics.net_income = value
         elif key == "total_debt":
             metrics.total_debt = value
         elif key == "borrowings" or key == "debt_securities":
             debt_components.append(abs(value))
         elif key == "total_equity":
             metrics.total_equity = value
+        elif key == "assets":
+            metrics.assets = value
+        elif key == "liabilities":
+            metrics.liabilities = value
+        elif key == "cash_flow":
+            metrics.cash_flow = value
         elif key == "debt_to_equity":
             metrics.debt_to_equity = value
         elif key == "current_ratio":
@@ -159,21 +188,12 @@ def _extract_from_text(text: str, metrics: FinancialMetrics) -> None:
         elif key == "roa":
             metrics.roa_pct = value
         elif key == "ebitda":
-            if metrics.revenue and metrics.revenue != 0:
-                metrics.ebitda_margin_pct = (value / abs(metrics.revenue)) * 100
+            metrics.ebitda = value
 
     if debt_components:
         debt_sum = sum(debt_components)
         if metrics.total_debt is None or (len(debt_components) > 1 and debt_sum > metrics.total_debt):
             metrics.total_debt = debt_sum
-
-    if (
-        metrics.debt_to_equity is None
-        and metrics.total_debt is not None
-        and metrics.total_equity is not None
-        and metrics.total_equity != 0
-    ):
-        metrics.debt_to_equity = metrics.total_debt / metrics.total_equity
 
 
 def _extract_from_table(df: pd.DataFrame, metrics: FinancialMetrics) -> None:
@@ -196,21 +216,24 @@ def _extract_from_table(df: pd.DataFrame, metrics: FinancialMetrics) -> None:
             metrics.revenue = value
         elif key == "revenue_growth" and metrics.revenue_growth_pct is None:
             metrics.revenue_growth_pct = value
-        elif key == "ebitda" and metrics.ebitda_margin_pct is None:
-            # If EBITDA row and previous revenue known, estimate margin.
-            if metrics.revenue and value is not None and metrics.revenue != 0:
-                metrics.ebitda_margin_pct = (value / metrics.revenue) * 100
+        elif key == "ebitda" and metrics.ebitda is None:
+            metrics.ebitda = value
         elif key == "ebitda_margin" and metrics.ebitda_margin_pct is None:
             metrics.ebitda_margin_pct = value
-        elif key == "net_profit" and metrics.net_profit_margin_pct is None:
-            if metrics.revenue and value is not None and metrics.revenue != 0:
-                metrics.net_profit_margin_pct = (value / metrics.revenue) * 100
+        elif key == "net_income" and metrics.net_income is None:
+            metrics.net_income = value
         elif key == "net_profit_margin" and metrics.net_profit_margin_pct is None:
             metrics.net_profit_margin_pct = value
         elif key == "total_debt" and metrics.total_debt is None:
             metrics.total_debt = value
         elif key == "total_equity" and metrics.total_equity is None:
             metrics.total_equity = value
+        elif key == "assets" and metrics.assets is None:
+            metrics.assets = value
+        elif key == "liabilities" and metrics.liabilities is None:
+            metrics.liabilities = value
+        elif key == "cash_flow" and metrics.cash_flow is None:
+            metrics.cash_flow = value
         elif key == "debt_to_equity" and metrics.debt_to_equity is None:
             metrics.debt_to_equity = value
         elif key == "current_ratio" and metrics.current_ratio is None:
@@ -240,6 +263,21 @@ def parse_financial_metrics(
             _extract_from_text(text, metrics)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to parse metrics from text: %s", exc)
+
+    # Calculate derived metrics at the end to ensure all components are available
+    if metrics.revenue and metrics.revenue != 0:
+        if metrics.ebitda is not None and metrics.ebitda_margin_pct is None:
+            metrics.ebitda_margin_pct = (metrics.ebitda / abs(metrics.revenue)) * 100
+        if metrics.net_income is not None and metrics.net_profit_margin_pct is None:
+            metrics.net_profit_margin_pct = (metrics.net_income / abs(metrics.revenue)) * 100
+
+    if (
+        metrics.debt_to_equity is None
+        and metrics.total_debt is not None
+        and metrics.total_equity is not None
+        and metrics.total_equity != 0
+    ):
+        metrics.debt_to_equity = metrics.total_debt / metrics.total_equity
 
     logger.info("Parsed financial metrics: %s", metrics)
     return asdict(metrics)

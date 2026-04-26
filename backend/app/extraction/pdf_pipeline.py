@@ -3,7 +3,7 @@ from __future__ import annotations
 from io import BytesIO
 from typing import Any, Dict, List, Tuple
 
-import fitz  # PyMuPDF
+
 import pdfplumber
 import camelot
 import tabula
@@ -16,15 +16,17 @@ from .table_cleaner import clean_extracted_tables
 logger = get_logger(__name__)
 
 
-def extract_text_pymupdf(file_bytes: bytes) -> str:
-    """Extract raw text using PyMuPDF with good layout preservation."""
+def extract_text_pdfplumber(file_bytes: bytes) -> str:
+    """Extract raw text using pdfplumber."""
     text_parts: List[str] = []
     try:
-        with fitz.open(stream=file_bytes, filetype="pdf") as doc:
-            for page in doc:
-                text_parts.append(page.get_text("text"))
+        with pdfplumber.open(BytesIO(file_bytes)) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    text_parts.append(text)
     except Exception as exc:  # noqa: BLE001
-        logger.error("PyMuPDF text extraction failed: %s", exc)
+        logger.error("pdfplumber text extraction failed: %s", exc)
     return "\n".join(text_parts).strip()
 
 
@@ -86,7 +88,7 @@ def extract_tables_tabula(file_bytes: bytes) -> List[pd.DataFrame]:
 
 def extract_all(file_bytes: bytes) -> Tuple[str, List[pd.DataFrame]]:
     """High-accuracy multi-engine extraction with fallbacks."""
-    raw_text = extract_text_pymupdf(file_bytes)
+    raw_text = extract_text_pdfplumber(file_bytes)
 
     tables: List[pd.DataFrame] = []
     tables.extend(extract_tables_pdfplumber(file_bytes))

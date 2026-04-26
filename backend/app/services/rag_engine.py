@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Tuple
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 
 from ..ai.gemini_service import GeminiEmbeddings, chat_with_context

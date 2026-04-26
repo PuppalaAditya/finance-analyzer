@@ -70,28 +70,36 @@ def _build_dashboard_from_store(entries: list) -> dict:
 
     # 3. Balance sheet analysis (latest)
     assets_comp = []
-    if assets:
-        debt_val = float(latest_metrics.get("total_debt") or 0)
-        # Other liabilities = total liabilities minus debt, or fallback from assets-equity-debt
-        if liabilities:
-            other_liab = max(liabilities - debt_val, 0)
-        else:
-            other_liab = max(assets - equity - debt_val, 0)
+    debt_val = float(latest_metrics.get("total_debt") or 0)
+    
+    if not assets and liabilities and equity:
+        assets = liabilities + equity
+    if not liabilities and assets and equity:
+        liabilities = max(assets - equity, 0)
+    
+    if assets or equity or debt_val:
+        # Fallback to debt if total liabilities is missing
+        calc_liab = liabilities if liabilities else debt_val
+        other_liab = max(calc_liab - debt_val, 0)
         assets_comp = [
             {"segment": "Equity", "value": max(equity, 0)},
             {"segment": "Debt", "value": max(debt_val, 0)},
             {"segment": "Other Liabilities", "value": other_liab},
         ]
+        # Filter out 0s if they are all 0
+        if sum(item["value"] for item in assets_comp) == 0:
+            assets_comp = []
 
     liabilities_struct = []
-    total_liab = liabilities or (equity + float(latest_metrics.get("total_debt") or 0))
-    if total_liab:
-        debt = float(latest_metrics.get("total_debt") or 0)
-        other = max(total_liab - debt, 0)
+    total_liab = liabilities or (equity + debt_val)
+    if total_liab or debt_val:
+        other = max((liabilities or debt_val) - debt_val, 0)
         liabilities_struct = [
-            {"category": "Debt", "value": debt},
+            {"category": "Debt", "value": debt_val},
             {"category": "Other Liabilities", "value": other},
         ]
+        if sum(item["value"] for item in liabilities_struct) == 0:
+            liabilities_struct = []
 
     # 4. Ratios (latest)
     roe = latest_metrics.get("roe_pct")

@@ -17,6 +17,7 @@ import {
   Sparkles,
   Wallet
 } from "lucide-react";
+import ChartPanel from "../components/ChartPanel";
 import FileUploader from "../components/FileUploader";
 import FinancialCard from "../components/FinancialCard";
 import InsightCard from "../components/InsightCard";
@@ -125,9 +126,9 @@ const Analyzer = () => {
         icon: CircleDollarSign
       },
       {
-        title: "EBITDA Margin",
-        value: formatPercent(metrics.ebitda_margin_pct),
-        subtitle: "Operating profitability",
+        title: metrics.ebitda_margin_pct ? "EBITDA Margin" : "Profit Margin",
+        value: formatPercent(metrics.ebitda_margin_pct || metrics.net_profit_margin_pct),
+        subtitle: metrics.ebitda_margin_pct ? "Operating profitability" : "Net profitability",
         tone: "highlight",
         changeLabel: "Margin profile",
         icon: BadgePercent
@@ -156,30 +157,66 @@ const Analyzer = () => {
       metrics.current_ratio,
       metrics.debt_to_equity,
       metrics.ebitda_margin_pct,
+      metrics.net_profit_margin_pct,
       metrics.revenue,
       metrics.revenue_growth_pct
     ]
   );
 
-  const chartData = useMemo(
-    () =>
-      [
-        { label: "Revenue", value: metrics.revenue },
-        { label: "Net Income", value: metrics.net_income },
-        { label: "Assets", value: metrics.assets },
-        { label: "Liabilities", value: metrics.liabilities },
-        { label: "Total Debt", value: metrics.total_debt },
-        { label: "Cash Flow", value: metrics.cash_flow }
-      ].filter((item) => item.value != null && Number(item.value) > 0),
-    [
-      metrics.assets,
-      metrics.cash_flow,
-      metrics.liabilities,
-      metrics.net_income,
-      metrics.revenue,
-      metrics.total_debt
-    ]
-  );
+  const chartPanelData = useMemo(() => {
+    if (!metrics || Object.keys(metrics).length === 0) return null;
+    
+    const rev = metrics.revenue || 0;
+    const ni = metrics.net_income || 0;
+    const expenses = (rev && ni) ? rev - ni : null;
+    const margin = metrics.net_profit_margin_pct;
+
+    let assets = metrics.assets || 0;
+    let liabilities = metrics.liabilities || 0;
+    let equity = metrics.total_equity || (assets - liabilities);
+    const debt_val = metrics.total_debt || 0;
+
+    if (!assets && liabilities && equity) assets = liabilities + equity;
+    if (!liabilities && assets && equity) liabilities = Math.max(assets - equity, 0);
+
+    let assets_comp = [];
+    if (assets || equity || debt_val) {
+      const calc_liab = liabilities ? liabilities : debt_val;
+      const other_liab = Math.max(calc_liab - debt_val, 0);
+      assets_comp = [
+        { segment: "Equity", value: Math.max(equity, 0) },
+        { segment: "Debt", value: Math.max(debt_val, 0) },
+        { segment: "Other Liabilities", value: other_liab }
+      ];
+      if (assets_comp.reduce((sum, item) => sum + item.value, 0) === 0) {
+        assets_comp = [];
+      }
+    }
+
+    let liab_struct = [];
+    const total_liab = liabilities || (equity + debt_val);
+    if (total_liab || debt_val) {
+      const other = Math.max((liabilities || debt_val) - debt_val, 0);
+      liab_struct = [
+        { category: "Debt", value: debt_val },
+        { category: "Other Liabilities", value: other }
+      ];
+      if (liab_struct.reduce((sum, item) => sum + item.value, 0) === 0) {
+        liab_struct = [];
+      }
+    }
+
+    return {
+      profit_and_loss: {
+        series: [{ label: "Latest", revenue: rev || null, expenses: expenses, net_profit: ni || null }],
+        margin_trend: [{ label: "Latest", profit_margin: margin }]
+      },
+      balance_sheet: {
+        assets_composition: assets_comp,
+        liabilities_structure: liab_struct
+      }
+    };
+  }, [metrics]);
 
   const ratioSignals = [
     {
@@ -188,9 +225,9 @@ const Analyzer = () => {
       width: `${Math.min(Math.max(metrics.revenue_growth_pct || 0, 0), 100)}%`
     },
     {
-      label: "EBITDA Margin",
-      value: formatPercent(metrics.ebitda_margin_pct),
-      width: `${Math.min(Math.max(metrics.ebitda_margin_pct || 0, 0), 100)}%`
+      label: metrics.ebitda_margin_pct ? "EBITDA Margin" : "Net Margin",
+      value: formatPercent(metrics.ebitda_margin_pct || metrics.net_profit_margin_pct),
+      width: `${Math.min(Math.max((metrics.ebitda_margin_pct || metrics.net_profit_margin_pct) || 0, 0), 100)}%`
     },
     {
       label: "ROE",
@@ -306,94 +343,15 @@ const Analyzer = () => {
                 ))}
               </div>
 
-              <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+              {chartPanelData ? (
+                <ChartPanel data={chartPanelData} />
+              ) : (
                 <div className="surface-panel p-6">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.22em] text-textSecondary">
-                        Charts
-                      </p>
-                      <p className="mt-2 text-sm text-slate-300">
-                        Parsed scale metrics from the uploaded report.
-                      </p>
-                    </div>
-                    <Activity className="h-5 w-5 text-accentTeal" />
+                  <div className="surface-panel-muted mt-6 px-6 py-10 text-center text-sm leading-7 text-textSecondary">
+                    Charts appear once the parser can recover structured scale metrics from the uploaded document.
                   </div>
-
-                  {chartData.length ? (
-                    <div className="mt-6 h-72">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData}>
-                          <CartesianGrid
-                            stroke="rgba(148,163,184,0.08)"
-                            vertical={false}
-                          />
-                          <XAxis
-                            dataKey="label"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: "#94A3B8", fontSize: 11 }}
-                          />
-                          <YAxis
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: "#94A3B8", fontSize: 11 }}
-                          />
-                          <Tooltip contentStyle={tooltipStyle} />
-                          <Bar
-                            dataKey="value"
-                            fill="#3B82F6"
-                            radius={[10, 10, 0, 0]}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="surface-panel-muted mt-6 px-6 py-10 text-center text-sm leading-7 text-textSecondary">
-                      Charts appear once the parser can recover structured scale
-                      metrics from the uploaded document.
-                    </div>
-                  )}
                 </div>
-
-                <div className="surface-panel p-6">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.22em] text-textSecondary">
-                        Signal Monitor
-                      </p>
-                      <p className="mt-2 text-sm text-slate-300">
-                        Quick view of growth, margin, and return metrics.
-                      </p>
-                    </div>
-                    <BadgePercent className="h-5 w-5 text-accentAmber" />
-                  </div>
-
-                  {ratioSignals.length ? (
-                    <div className="mt-6 space-y-5">
-                      {ratioSignals.map((item) => (
-                        <div key={item.label}>
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-slate-200">{item.label}</span>
-                            <span className="text-textSecondary">{item.value}</span>
-                          </div>
-                          <div className="mt-2 h-2 rounded-full bg-white/5">
-                            <div
-                              className="h-2 rounded-full bg-gradient-to-r from-accentBlue to-accentTeal"
-                              style={{ width: item.width }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="surface-panel-muted mt-6 px-6 py-10 text-center text-sm leading-7 text-textSecondary">
-                      Ratio monitors populate after growth and profitability
-                      fields are extracted.
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
 
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <InsightCard
