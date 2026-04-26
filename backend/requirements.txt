@@ -7,8 +7,6 @@ langchain-community
 faiss-cpu
 pymupdf
 pdfplumber
-camelot-py
-tabula-py
 pandas
 python-dotenv
 markdown
